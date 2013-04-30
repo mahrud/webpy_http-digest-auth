@@ -47,21 +47,32 @@ class digest_auth:
             acl[identity] = H1.digest().encode('hex')
 
         # Getting the HTTP_AUTHORIZATION header:
-        http_auth_response = web.ctx.env.get('HTTP_AUTHORIZATION')
+        auth = web.ctx.env.get('HTTP_AUTHORIZATION')
+        """
+        This is how the user response looks like:
+         Authorization: Digest username="Mufasa",
+                 realm="testrealm@host.com",
+                 nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
+                 uri="/dir/index.html",
+                 qop=auth,
+                 nc=00000001,
+                 cnonce="0a4f113b",
+                 response="6629fae49393a05397450978507c4ef1",
+                 opaque="5ccc069c403ebaf9f0171e9517f40e41"
+        """
 
-        if http_auth_response:
-            # removing the 'DIGEST' in the beginning:
-            http_auth_response = ' '.join(http_auth_response.split(' ')[1:])
+        if auth:
+            # removing the 'Digest' in the beginning:
+            auth = re.sub('^Digest ','', auth, re.IGNORECASE)
 
-            # split by '", 's # FIXME
-            http_auth_response = re.split(r', ', http_auth_response)
+            # split by '", 's # FIXME: fishy ...
+            auth = re.split(r', ', auth)
 
             params = dict()
-            for param in http_auth_response:
-                record = param.split('=')
-                record[0] = record[0].strip('" ')
-                record[1] = ''.join(record[1:]).strip('" ')
-                params[record[0]] = record[1]
+            for param in re.findall(r'(.+?)=(.+?), ', auth):
+                params[param[0]] = param[1]
+            # TODO: the last parameter (opaque) doesn't fit into the regex. FIXME
+            # params[]
 
             uri = params['uri']
             nonce = params['nonce']
@@ -104,7 +115,15 @@ class digest_auth:
 #           'auth-param="%s", ' % (auth_param) + 
             ''
             )
-
+        """
+        This is how the server response looks like:
+         HTTP/1.1 401 Unauthorized
+         WWW-Authenticate: Digest
+                 realm="testrealm@host.com",
+                 qop="auth,auth-int",
+                 nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
+                 opaque="5ccc069c403ebaf9f0171e9517f40e41"
+        """
         web.ctx.status = '401 Unauthorized'
         return renderer.home('Error 401','401 Unauthorized')
 
