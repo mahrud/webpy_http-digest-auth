@@ -36,6 +36,7 @@ class digest_auth:
         nonce = H0.digest().encode('hex')
 
         # We can either keep the user:pass,
+        users = ['user1', 'user2']
         acl = {
             'user1': '123456',
             'user2': 'qwerty'
@@ -66,7 +67,7 @@ class digest_auth:
             auth = re.sub('^Digest ','', auth, re.IGNORECASE)
 
             # split by '", 's # FIXME: fishy ...
-            auth = re.split(r', ', auth)
+            # auth = re.split(r', ', auth)
 
             params = dict()
             for param in re.findall(r'(.+?)=(.+?), ', auth):
@@ -74,10 +75,10 @@ class digest_auth:
             # TODO: the last parameter (opaque) doesn't fit into the regex. FIXME
             # params[]
 
-            uri = params['uri']
-            nonce = params['nonce']
-            username = params['username']
-            response = params['response']
+            uri = params['uri'][1:-1]
+            nonce = params['nonce'][1:-1]
+            username = params['username'][1:-1]
+            response = params['response'][1:-1]
             method = web.ctx.env.get('REQUEST_METHOD')
 
             try:
@@ -85,7 +86,10 @@ class digest_auth:
 #               H1 = MD5.new()
 #               H1.update("%s:%s:%s" % (username, realm, password))
 #               A1 = H1.digest().encode('hex')
-                A1 = acl[username]
+                if username in users:
+                    A1 = acl[username]
+                else:
+                    A1 = ''
 
                 H2 = MD5.new()
                 H2.update("%s:%s" % (method, uri))
